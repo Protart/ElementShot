@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * {
+        background-color: black;
+      }
+      button {
+        height: 50px;
+        width: 250px;
+
+        background-color: #1d1d1d;
+        border-radius: 10px;
+        font-family: Bebas Neue;
+        color: #7e7e7e;
+        font-size: 20pt;
+        margin: 10px;
+      }
+
+      img {
+        width: 96px;
+        height: 96px;
+        padding-left: 30%;
+        text-align: center;
+      }
+      
+      label {
+        font-family: Manrope;
+        color: blanchedalmond;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="popup">
+      <img src="logo.png" alt="logo" />
+      <button id="elementss">Element Screenshot</button>
+      <button id="changeColor">Full Page Screenshot</button>
+      <div style="display: flex; flex-direction: row;">
+        <input type="checkbox" id="copy" name="copy" value="" />
+        <label for="copy">Copy to Clipboard</label><br />
+        <input type="checkbox" id="download" name="download" value="" />
+        <label for="download">Download image</label><br />
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
