@@ -1,9 +1,3 @@
-const dynamicCSS = document.createElement("style");
-dynamicCSS.innerText = `html[is-extension-waiting-click]  :hover {
-background-color:red !important;
-}`;
-document.head.appendChild(dynamicCSS);
-
 function main() {
   const ArrayFrom =
     Array.from ||
@@ -425,9 +419,26 @@ function main() {
       el.style.backgroundColor
     );
   }
+
+  let toReset;
+
+  const reset = (t) =>
+    t && (t.style.background = t.getAttribute("data-old_background") || "");
+  const mouseover = (e) => {
+    toReset = e.target;
+    e.target.setAttribute("data-old_background", e.target.style.background);
+    e.target.style.background = "red";
+  };
+  const mouseout = (e) => {
+    const t = e.target;
+    reset(t);
+  };
   // var numberofclicks = 0;
   function getElementName() {
     window.removeEventListener("click", getElementName);
+    removeEventListener("mouseover", mouseover);
+    removeEventListener("mouseout", mouseout);
+    reset(toReset);
     document.documentElement.removeAttribute("is-extension-waiting-click");
     // numberofclicks++;
     const hoveredNodes = ArrayFrom(document.querySelectorAll(":hover"));
@@ -446,7 +457,8 @@ function main() {
       });
   }
 
-  document.documentElement.setAttribute("is-extension-waiting-click", "");
+  window.addEventListener("mouseover", mouseover);
+  window.addEventListener("mouseout", mouseout);
   window.addEventListener("click", getElementName);
 }
 
