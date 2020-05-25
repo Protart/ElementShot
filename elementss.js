@@ -1,390 +1,357 @@
 function main() {
-  const ArrayFrom =
-    Array.from ||
-    ((iterable) => {
-      return [].slice.call(iterable);
-    });
-
-  const identity = (x) => x;
-
-  const $unescape = window.unescape || identity;
-
-  /** @param {CanvasRenderingContext2D} ctx */
-
-  function isTainted(ctx) {
-    try {
-      return !ctx.getImageData(0, 0, 1, 1);
-    } catch (err) {
-      return true;
-    }
+  const e = Array.from || ((e) => [].slice.call(e)),
+    t =
+      window.unescape ||
+      function (e) {
+        return e;
+      },
+    s = Promise.prototype.then.bind(Promise.resolve()),
+    n = window.requestAnimationFrame || s || queueMicrotask;
+  function r(e) {
+    n(() => n(e));
   }
-
-  const defer = Promise.prototype.then.bind(Promise.resolve());
-  const _callback = window.requestAnimationFrame || defer || queueMicrotask; //?
-
-  const callback = (fn) => _callback(() => _callback(fn));
-
-  function createEventPromise(obj, event, timeout) {
-    return new Promise((resolve) => {
-      let timeout;
-      const $resolveClearTimeout = () => {
-        clearTimeout(timeout);
-        resolve();
+  function o(e, t, s) {
+    return new Promise((n) => {
+      let r;
+      const o = (e) => {
+        clearTimeout(r), n(e);
       };
-      obj.addEventListener(event, $resolveClearTimeout, { once: true });
-      obj.addEventListener("error", $resolveClearTimeout, {
-        once: true,
-      });
-      timeout = setTimeout($resolveClearTimeout, timeout || 5000);
+      e.addEventListener(t, o, { once: !0 }),
+        e.addEventListener("error", () => o({ IS_ERROR: !0 }), { once: !0 }),
+        (r = setTimeout(o, s || 5e3));
     });
   }
-
-  class DOMShot {
-    /** @param {HTMLElement} sourceNode
-     *  @param {{}} options
-     */
-    constructor(sourceNode, options) {
-      /**
-       * @type  {{drawImgTagsOnCanvas:boolean,timeout:number}}
-       */
-
-      this.options = options || { drawImgTagsOnCanvas: false, timeout: 5000 };
-
-      /** @type {HTMLImageElement} the svg encoded to base64 */
-
-      this._img = null;
-
-      /** @type {Promise<Event>} */
-
-      this._imgReadyForCanvas = null;
-
-      /** @type {number} scrollWidth of `sourceNode` */
-
-      this._width = null;
-
-      /** @type {number} scrollHeight of `sourceNode` */
-
-      this._height = null;
-
-      /** @type {string} DOM to svg string */
-
-      this._svg = null;
-
-      /** @type {HTMLCanvasElement} the canvas to get a rendered JPEG from */
-
-      this._canvas = document.createElement("canvas");
-
-      /** @type {CanvasRenderingContext2D} */
-
-      this._canvasContext = this._canvas.getContext("2d");
-
-      /** @type {0|1} */
-
-      this._canvasState = null;
-
-      /** @type {HTMLElement} the node to clone */
-
-      this._sourceNode = null;
-
-      /** @type {HTMLElement} cloned this._sourceNode */
-
-      this._clonedNode = null;
-
-      /** @type {HTMLElement[]} children of the source node `sourceNode.querySelectorAll('*')` */
-
-      this._sourceChildren = null;
-
-      /** @type {HTMLElement[]} children of the clone node `clonedNode.querySelectorAll('*')` */
-
-      this._clonedChildren = null;
-
-      if (sourceNode) {
-        this.from(sourceNode);
+  const i = [
+      "margin",
+      "marginLeft",
+      "marginTop",
+      "marginBottom",
+      "marginRight",
+    ],
+    a = {},
+    l = a.hasOwnProperty,
+    c =
+      "assign" in Object
+        ? a.constructor.assign
+        : function (e) {
+            for (let t = 1; t < arguments.length; t++) {
+              const s = arguments[t];
+              for (const t in s) l.call(s, t) && (e[t] = s[t]);
+            }
+            return e;
+          },
+    h = { data: 1, blob: 1 };
+  function d(e, t) {
+    const s = getComputedStyle(e),
+      n = [];
+    for (const e of s) {
+      const t = s.getPropertyValue(e);
+      t && n.push(`${e}:${t};`);
+    }
+    t.style.cssText = n.join("");
+  }
+  class u {
+    transform(e, t, s) {
+      return this._inline(e, t, s && s.options.timeout).then((e) => ({
+        node: e,
+      }));
+    }
+    test(e) {
+      return "IMG" === e.tagName && !h[e.src.substr(0, 4)];
+    }
+    static requestRenderer(e) {
+      const t = new u();
+      e.tapRenderProcess(t);
+    }
+    _inline(e, t, s) {
+      if (!(e instanceof HTMLImageElement || e instanceof HTMLVideoElement))
+        return Promise.resolve(e);
+      if ("blob" === e.src.substr(0, 4)) {
+        const n = this._draw(t),
+          r = new Image();
+        r.style.cssText = e.style.cssText;
+        const i = o(r, "load", s);
+        return (r.src = n.c.toDataURL()), e.replaceWith(r), i.then(() => r);
       }
-      this._xmlSerializer = new XMLSerializer();
-    }
-    /**
-     *
-     * @param {HTMLElement} source Node to copy CSS from
-     * @param {HTMLElement} target Node to copy CSS to
-     */
-
-    static cloneStyle(source, target) {
-      const computed = getComputedStyle(source);
-
-      const css = [];
-
-      for (const style of computed) {
-        const value = computed.getPropertyValue(style);
-        if (!value) continue;
-        css.push(`${style}:${value};`);
-      }
-
-      target.style.cssText = css.join("");
-    }
-
-    /** @param {HTMLImageElement} img */
-
-    static inlineImageIfPossible(img, timeout) {
-      if (["blob", "data"].indexOf(img.src.substr(0, 4)) === 0) return;
-
-      const prom = createEventPromise(img, "load", timeout).then(() => {
-        const c = document.createElement("canvas");
-
-        c.height = img.height;
-
-        c.width = img.width;
-
-        const ctx = c.getContext("2d");
-
-        ctx.drawImage(img, 0, 0);
-
-        if (!isTainted(ctx)) {
-          const imgOnLoad = createEventPromise(img, "load", timeout);
-          img.src = c.toDataURL();
-          return imgOnLoad;
-        }
-      });
-
-      img.crossOrigin = "anonymous";
-      return prom;
-    }
-
-    /** @param {HTMLElement} node */
-
-    _clone(node) {
-      const cloned = node.cloneNode(true);
-      return cloned;
-    }
-    /**
-     * @param {HTMLElement} node sets the new source node
-     *  @returns {DOMToSVG}
-     */
-
-    from(node) {
-      this._width = this._height = 0;
-
-      this._canvasState = DOMShot.DRAW_PENDING;
-
-      this._sourceNode = node;
-
-      this._clonedNode = this._clone(this._sourceNode);
-
-      this._sourceChildren = ArrayFrom(this._sourceNode.querySelectorAll("*"));
-
-      this._clonedChildren = ArrayFrom(this._clonedNode.querySelectorAll("*"));
-
-      return this;
-    }
-
-    _cloneChildNodeStyle() {
-      const clonedChildren = this._clonedChildren;
-
-      const nodeChildren = this._sourceChildren;
-
-      for (let i = 0; i < clonedChildren.length; i++) {
-        const sourceChild = nodeChildren[i];
-
-        const cloneChild = clonedChildren[i];
-
-        DOMShot.cloneStyle(sourceChild, cloneChild);
-      }
-    }
-
-    _walkChildNodes() {
-      const clonedChildren = this._clonedChildren;
-      const imgProm = [];
-      for (const child of clonedChildren) {
-        const tag = child.tagName;
+      const n = o(e, "load", s).then((t) => {
+        if (t.IS_ERROR) return;
+        const n = this._draw(e),
+          r = n.c;
         if (
-          tag === "SCRIPT" ||
-          tag === "STYLE" ||
-          tag === "HEAD" ||
-          tag === "NOSCRIPT" ||
-          child.style.display === "none"
+          !(function (e) {
+            try {
+              return !e.getImageData(0, 0, 1, 1);
+            } catch (e) {
+              return !0;
+            }
+          })(n.ctx)
         ) {
-          child.remove();
-          continue;
+          const t = o(e, "load", s),
+            n = r.toDataURL();
+          return (e.src = n), t.then(() => e);
         }
-        if (this.options.drawImgTagsOnCanvas && tag === "IMG") {
-          imgProm.push(
-            DOMShot.inlineImageIfPossible(child, this.options.timeout)
-          );
+      });
+      return (e.crossOrigin = "anonymous"), n;
+    }
+    _draw(e) {
+      const t = document.createElement("canvas");
+      (t.height = e.videoHeight || e.height),
+        (t.width = e.videoWidth || e.width);
+      const s = t.getContext("2d");
+      return s.drawImage(e, 0, 0), { ctx: s, c: t };
+    }
+  }
+  class _ {
+    test(e) {
+      return "VIDEO" === e.tagName;
+    }
+    transform(e, t) {
+      const s = new u();
+      return s.transform(e, t).then((n) => {
+        const r = new Image();
+        if (((r.style.cssText = e.style.cssText), null == n.node)) {
+          const n = e.poster;
+          if (n) return (r.src = n), e.replaceWith(r), s.transform(r, t);
         }
+        return (r.src = e.src), e.replaceWith(r), { node: r };
+      });
+    }
+    static requestRenderer(e) {
+      const t = new _();
+      e.tapRenderProcess(t);
+    }
+  }
+  class m {
+    constructor() {
+      this._inlineProps = [
+        "backgroundImage",
+        "borderImageSource",
+        "content",
+        "cursor",
+        "listStyleImage",
+        "mask",
+      ];
+    }
+    static requestRenderer(e) {
+      const t = new m();
+      e.tapRenderProcess(t);
+    }
+    _getInlinableImage(e) {
+      const t = (e.split("url(")[1] || "")
+        .split(")")[0]
+        .trim()
+        .replace(/['"]/g, "");
+      if ("http" === t.substr(0, 4).toLowerCase()) return t;
+    }
+    test(e) {
+      return this._inlineProps.some((t) => e.style[t].indexOf("url(") > -1);
+    }
+    transform(e, t) {
+      const s = e.style;
+      return Promise.all(
+        this._inlineProps.map((e) => {
+          const n = this._getInlinableImage(s[e]);
+          if (n) {
+            const r = new Image();
+            return (
+              (r.src = n),
+              new u().transform(r, t).then(() => (s[e] = `url('${r.src}')`))
+            );
+          }
+        })
+      ).then(() => ({ node: e }));
+    }
+  }
+  const g = { SCRIPT: 1, STYLE: 1, HEAD: 1, NOSCRIPT: 1 };
+  let DOMShot = (() => {
+    class s {
+      constructor(e, t) {
+        (this._img = null),
+          (this._imgReadyForCanvas = null),
+          (this._width = null),
+          (this._height = null),
+          (this._svg = null),
+          (this._canvas = document.createElement("canvas")),
+          (this._canvasContext = this._canvas.getContext("2d")),
+          (this._canvasState = null),
+          (this._sourceNode = null),
+          (this._clonedNode = null),
+          (this._sourceChildren = null),
+          (this._clonedChildren = null),
+          (this._xmlSerializer = new XMLSerializer()),
+          (this._nodeTraversalHooks = []),
+          (this.options = c(t || {}, {
+            inlineImages: !0,
+            inlineVideos: !0,
+            timeout: 5e3,
+            dimensionGetter: "scroll",
+          })),
+          e && this.from(e),
+          this.options.inlineImages &&
+            (u.requestRenderer(this), m.requestRenderer(this)),
+          this.options.inlineVideos && _.requestRenderer(this);
       }
-      return imgProm;
-    }
-
-    _cleanMargin() {
-      [
-        "margin",
-        "marginLeft",
-        "marginTop",
-        "marginBottom",
-        "marginRight",
-      ].forEach((prop) => (this._clonedNode.style[prop] = ""));
-    }
-
-    _generateSVG() {
-      const sourceNode = this._sourceNode;
-
-      const clonedNode = this._clonedNode;
-
-      const width = sourceNode.scrollWidth;
-
-      const height = sourceNode.scrollHeight;
-
-      clonedNode.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-      const xml = this._xmlSerializer.serializeToString(clonedNode);
-
-      this._svg = `<?xml version='1.0' encoding='UTF-8' ?><svg
-          xmlns="http://www.w3.org/2000/svg"
-            width="${width}"
-            height="${height}">
-            <foreignObject width="100%" height="100%" x="0" y="0">${xml}</foreignObject>
-          </svg>
-         `;
-
-      this._img = new Image(width, height);
-
-      this._imgReadyForCanvas = createEventPromise(
-        this._img,
-        "load",
-        this.options.timeout
-      );
-
-      this._img.crossOrigin = "anonymous"; // ?
-
-      this._img.src = `data:image/svg+xml;charset=utf-8;base64,${btoa(
-        $unescape(encodeURIComponent(this._svg))
-      )}`;
-
-      this._width = width;
-
-      this._height = height;
-    }
-
-    _generateCanvas() {
-      if (this._canvasState === DOMShot.DRAWN) return;
-
-      const canvas = document.createElement("canvas");
-
-      const ctx = canvas.getContext("2d");
-
-      canvas.height = this._height;
-
-      canvas.width = this._width;
-
-      this._canvas = canvas;
-      this._canvasContext = ctx;
-    }
-
-    _fillCanvas() {
-      if (this._canvasState === DOMShot.DRAWN) return;
-
-      const ctx = this._canvasContext;
-
-      const img = this._img;
-
-      ctx.drawImage(img, 0, 0);
-
-      this._canvasState = DOMShot.DRAWN;
-
-      this._imgReadyForCanvas = null;
-      this._clonedChildren = null;
-      this._sourceChildren = null;
-      this._clonedChildren = null;
-      this._sourceNode = null;
-      this._clonedNode = null;
-    }
-
-    /** @returns {Promise<DOMToSVG>} */
-
-    screenshot() {
-      return new Promise((resolve) =>
-        callback(() => {
-          if (!this._clonedNode)
-            throw new Error("No source node has been specified");
-
-          this._cloneChildNodeStyle();
-
-          const promiseArr = this._walkChildNodes();
-
-          return Promise.all(promiseArr)
-            .then(() => {
-              DOMShot.cloneStyle(this._sourceNode, this._clonedNode);
-
-              this._cleanMargin();
-
-              this._generateSVG();
-              return this._imgReadyForCanvas.then(() => {
-                this._imgReadyForCanvas = null;
-                this._generateCanvas();
-
-                this._fillCanvas();
-
-                resolve(this);
+      _reset() {
+        (this._imgReadyForCanvas = null),
+          (this._clonedChildren = null),
+          (this._sourceChildren = null),
+          (this._clonedChildren = null),
+          (this._sourceNode = null),
+          (this._clonedNode = null);
+      }
+      _clone() {
+        const t = this._sourceNode.cloneNode(!0);
+        (this._clonedNode = t),
+          (this._sourceChildren = e(this._sourceNode.querySelectorAll("*"))),
+          (this._clonedChildren = e(this._clonedNode.querySelectorAll("*"))),
+          t.scroll({
+            left: this._sourceNode.scrollLeft,
+            top: this._sourceNode.scrollTop,
+          });
+      }
+      _generateSVG() {
+        const e = this._sourceNode,
+          s = this._clonedNode;
+        let n, r;
+        if ("offset" === this.options.dimensionGetter) {
+          const t = e.offsetWidth,
+            s = e.clientHeight;
+          (n = Math.max(e.offsetWidth, e.clientWidth)), (r = Math.max(t, s));
+        } else (n = e.scrollWidth), (r = e.scrollHeight);
+        s.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+        const i = this._xmlSerializer.serializeToString(s);
+        (this._svg = `<?xml version='1.0' encoding='UTF-8' ?><svg\n    xmlns="http://www.w3.org/2000/svg"\n      width="${n}"\n      height="${r}">\n      <foreignObject width="100%" height="100%" x="0" y="0">${i}</foreignObject>\n    </svg>\n   `),
+          (this._img = new Image(n, r)),
+          (this._imgReadyForCanvas = o(
+            this._img,
+            "load",
+            this.options.timeout
+          )),
+          (this._img.src =
+            "data:image/svg+xml;charset=utf-8;base64," +
+            btoa(t(encodeURIComponent(this._svg)))),
+          (this._width = n),
+          (this._height = r);
+      }
+      _fillCanvas() {
+        this._canvasState !== s.DRAWN &&
+          (this._canvasContext.drawImage(this._img, 0, 0),
+          (this._canvasState = s.DRAWN),
+          this._reset());
+      }
+      _generateCanvas() {
+        if (this._canvasState === s.DRAWN) return;
+        const e = document.createElement("canvas"),
+          t = e.getContext("2d");
+        (e.height = this._height),
+          (e.width = this._width),
+          (this._canvas = e),
+          (this._canvasContext = t);
+      }
+      _drawImage() {
+        return new Promise((e, t) => {
+          this._canvasState === s.DRAW_PENDING &&
+            t("Please call Screenshot first"),
+            r(() => (this._fillCanvas(), e(this)));
+        });
+      }
+      _processChildNodes() {
+        const e = this._sourceChildren,
+          t = [];
+        return (
+          this._clonedChildren.forEach((s, n) => {
+            if (g[s.tagName] || "none" === s.style.display) return s.remove();
+            t.push(this._sequentiallyRunTraversalHook(s, e[n]));
+          }),
+          Promise.all(t)
+        );
+      }
+      _sequentiallyRunTraversalHook(e, t) {
+        return new Promise((s) => {
+          const n = this._nodeTraversalHooks,
+            r = n.length;
+          let o = -1;
+          const i = () => {
+            if (++o == r) return s();
+            const a = n[o];
+            a.test(e)
+              ? a.transform(e, t, this).then((t) => {
+                  (e = t.node), i();
+                })
+              : i();
+          };
+          i();
+        });
+      }
+      tapRenderProcess(e) {
+        this._nodeTraversalHooks.push(e);
+      }
+      from(e) {
+        return (
+          this._reset(),
+          (this._width = this._height = 0),
+          (this._canvasState = s.DRAW_PENDING),
+          (this._sourceNode = e),
+          this
+        );
+      }
+      screenshot() {
+        return (
+          this._clone(),
+          new Promise((e) => {
+            if (!this._clonedNode)
+              throw new Error("No source node has been specified");
+            !(function (e, t) {
+              for (let s = 0; s < e.length; s++) d(t[s], e[s]);
+            })(this._clonedChildren, this._sourceChildren),
+              this._processChildNodes().then(() => {
+                var t, s;
+                return (
+                  d(this._sourceNode, this._clonedNode),
+                  (t = this._clonedNode).style.background ||
+                    t.style.backgroundImage ||
+                    t.style.backgroundColor ||
+                    (this._clonedNode.style.background = (function e(t) {
+                      if (!t) return;
+                      const s = t.parentElement;
+                      return s && s.style
+                        ? s.style.background ||
+                            s.style.backgroundColor ||
+                            s.style.backgroundImage ||
+                            e(s)
+                        : void 0;
+                    })(this._sourceNode)),
+                  (s = this._clonedNode),
+                  i.forEach((e) => (s.style[e] = "")),
+                  this._generateSVG(),
+                  this._imgReadyForCanvas.then(() => {
+                    (this._imgReadyForCanvas = null),
+                      this._generateCanvas(),
+                      this._fillCanvas(),
+                      e(this);
+                  })
+                );
               });
-            })
-            .catch((e) => {
-              console.log(e);
-              resolve(this);
-            });
-        })
-      );
-    }
-
-    /** @returns {Promise<DOMToSVG>} */
-
-    drawImage() {
-      return new Promise((resolve) =>
-        callback(() => {
-          this._fillCanvas();
-          return resolve(this);
-        })
-      );
-    }
-    /**
-     * @returns {Promise<string>}
-     * @param {string} type
-     * @param {number} quality
-     */
-    toDataUri(type, quality) {
-      return new Promise((resolve) =>
-        this.drawImage().then(() =>
-          callback(() =>
-            resolve(this._canvas.toDataURL(type || "image/jpeg", quality || 1))
+          })
+        );
+      }
+      toDataUri(e, t) {
+        return new Promise((s) =>
+          this._drawImage().then(() =>
+            r(() => s(this._canvas.toDataURL(e || "image/jpeg", t || 1)))
           )
-        )
-      );
-    }
-
-    /**
-     * @returns {Promise<string>}
-     * @param {Blob} type
-     * @param {number} quality
-     */
-    toBlob(type, quality) {
-      return new Promise((resolve) =>
-        this.drawImage().then(() =>
-          callback(() =>
-            this._canvas.toBlob(resolve, type || "image/jpeg", quality || 1)
+        );
+      }
+      toBlob(e, t) {
+        return new Promise((s) =>
+          this._drawImage().then(() =>
+            r(() => this._canvas.toBlob(s, e || "image/jpeg", t || 1))
           )
-        )
-      );
+        );
+      }
     }
-  }
-
-  DOMShot.DRAW_PENDING = 0;
-  DOMShot.DRAWN = 1;
-
-  async function screenshot() {
-    const shot = new DOMShot(document.documentElement, {
-      drawImgTagsOnCanvas: true,
-    });
-    await shot.screenshot();
-    return URL.createObjectURL(await shot.toBlob("image/png"));
-  }
+    return (s.DRAW_PENDING = 0), (s.DRAWN = 1), s;
+  })();
 
   async function screenshotElement(element) {
     const shot = new DOMShot(element, {
@@ -434,14 +401,18 @@ function main() {
     reset(t);
   };
   // var numberofclicks = 0;
-  function getElementName() {
+  /** @param {Event} e */
+  function getElementName(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
     window.removeEventListener("click", getElementName);
     removeEventListener("mouseover", mouseover);
     removeEventListener("mouseout", mouseout);
     reset(toReset);
     document.documentElement.removeAttribute("is-extension-waiting-click");
     // numberofclicks++;
-    const hoveredNodes = ArrayFrom(document.querySelectorAll(":hover"));
+    const hoveredNodes = Array.from(document.querySelectorAll(":hover"));
     console.log(hoveredNodes);
     const selectedElement = hoveredNodes[hoveredNodes.length - 1];
     const isTransparent = noBg(selectedElement);
