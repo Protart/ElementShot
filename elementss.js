@@ -4,94 +4,106 @@ function main() {
       window.unescape ||
       function (e) {
         return e;
-      },
-    s = Promise.prototype.then.bind(Promise.resolve()),
-    n = window.requestAnimationFrame || s || queueMicrotask;
-  function r(e) {
-    n(() => n(e));
+      };
+  function s(e) {
+    try {
+      return !e.getImageData(0, 0, 1, 1);
+    } catch (e) {
+      return !0;
+    }
+  }
+  const n = Promise.prototype.then.bind(Promise.resolve()),
+    r = window.requestAnimationFrame || n || queueMicrotask;
+  function i(e) {
+    r(() => r(e));
   }
   function o(e, t, s) {
     return new Promise((n) => {
       let r;
-      const o = (e) => {
+      const i = (e) => {
         clearTimeout(r), n(e);
       };
-      e.addEventListener(t, o, { once: !0 }),
-        e.addEventListener("error", () => o({ IS_ERROR: !0 }), { once: !0 }),
-        (r = setTimeout(o, s || 5e3));
+      e.addEventListener(t, i, { once: !0 }),
+        e.addEventListener("error", () => i({ IS_ERROR: !0 }), { once: !0 }),
+        (r = setTimeout(i, s || 5e3));
     });
   }
-  const i = [
+  const a = [
       "margin",
       "marginLeft",
       "marginTop",
       "marginBottom",
       "marginRight",
     ],
-    a = {},
-    l = a.hasOwnProperty,
-    c =
+    l = {},
+    c = l.hasOwnProperty,
+    h =
       "assign" in Object
-        ? a.constructor.assign
+        ? l.constructor.assign
         : function (e) {
             for (let t = 1; t < arguments.length; t++) {
               const s = arguments[t];
-              for (const t in s) l.call(s, t) && (e[t] = s[t]);
+              for (const t in s) c.call(s, t) && (e[t] = s[t]);
             }
             return e;
           },
-    h = { data: 1, blob: 1 };
-  function d(e, t) {
-    const s = getComputedStyle(e),
-      n = [];
-    for (const e of s) {
-      const t = s.getPropertyValue(e);
-      t && n.push(`${e}:${t};`);
+    d = { data: 1, blob: 1 };
+  function u(e, t, s) {
+    const n = getComputedStyle(e),
+      r = [];
+    for (const e of n) {
+      const t = n.getPropertyValue(e);
+      t && r.push(`${e}:${t};`);
     }
-    t.style.cssText = n.join("");
+    (t.style.cssText = r.join("")), s || (t.style.overflow = "hidden");
   }
-  class u {
+  class _ {
     transform(e, t, s) {
       return this._inline(e, t, s && s.options.timeout).then((e) => ({
         node: e,
       }));
     }
     test(e) {
-      return "IMG" === e.tagName && !h[e.src.substr(0, 4)];
+      return (
+        ("IMG" === e.tagName && !d[e.src.substr(0, 4)]) ||
+        "CANVAS" === e.tagName
+      );
     }
     static requestRenderer(e) {
-      const t = new u();
+      const t = new _();
       e.tapRenderProcess(t);
     }
-    _inline(e, t, s) {
-      if (!(e instanceof HTMLImageElement || e instanceof HTMLVideoElement))
+    _inline(e, t, n) {
+      if (
+        !(
+          e instanceof HTMLImageElement ||
+          e instanceof HTMLVideoElement ||
+          e instanceof HTMLCanvasElement
+        )
+      )
         return Promise.resolve(e);
-      if ("blob" === e.src.substr(0, 4)) {
-        const n = this._draw(t),
-          r = new Image();
-        r.style.cssText = e.style.cssText;
-        const i = o(r, "load", s);
-        return (r.src = n.c.toDataURL()), e.replaceWith(r), i.then(() => r);
+      if (
+        e instanceof HTMLCanvasElement ||
+        "blob" === (e.src || "").substr(0, 4)
+      ) {
+        const r = this._draw(t);
+        if (s(r.ctx)) return Promise.resolve(e);
+        const i = new Image();
+        i.style.cssText = e.style.cssText;
+        const a = o(i, "load", n);
+        return (i.src = r.c.toDataURL()), e.replaceWith(i), a.then(() => i);
       }
-      const n = o(e, "load", s).then((t) => {
-        if (t.IS_ERROR) return;
-        const n = this._draw(e),
-          r = n.c;
-        if (
-          !(function (e) {
-            try {
-              return !e.getImageData(0, 0, 1, 1);
-            } catch (e) {
-              return !0;
-            }
-          })(n.ctx)
-        ) {
-          const t = o(e, "load", s),
-            n = r.toDataURL();
-          return (e.src = n), t.then(() => e);
+      const r = o(e, "load", n).then((t) => {
+        if (t.IS_ERROR) return e;
+        const r = this._draw(e),
+          i = r.c;
+        if (!s(r.ctx)) {
+          const t = o(e, "load", n),
+            s = i.toDataURL();
+          return (e.src = s), t.then(() => e);
         }
       });
-      return (e.crossOrigin = "anonymous"), n;
+      return (e.crossOrigin = "anonymous"), r;
     }
     _draw(e) {
       const t = document.createElement("canvas");
@@ -101,12 +113,12 @@ function main() {
       return s.drawImage(e, 0, 0), { ctx: s, c: t };
     }
   }
-  class _ {
+  class m {
     test(e) {
       return "VIDEO" === e.tagName;
     }
     transform(e, t) {
-      const s = new u();
+      const s = new _();
       return s.transform(e, t).then((n) => {
         const r = new Image();
         if (((r.style.cssText = e.style.cssText), null == n.node)) {
@@ -117,11 +129,11 @@ function main() {
       });
     }
     static requestRenderer(e) {
-      const t = new _();
+      const t = new m();
       e.tapRenderProcess(t);
     }
   }
-  class m {
+  class g {
     constructor() {
       this._inlineProps = [
         "backgroundImage",
@@ -133,7 +145,7 @@ function main() {
       ];
     }
     static requestRenderer(e) {
-      const t = new m();
+      const t = new g();
       e.tapRenderProcess(t);
     }
     _getInlinableImage(e) {
@@ -144,7 +156,9 @@ function main() {
       if ("http" === t.substr(0, 4).toLowerCase()) return t;
     }
     test(e) {
-      return this._inlineProps.some((t) => e.style[t].indexOf("url(") > -1);
+      return this._inlineProps.some(
+        (t) => (((e || {}).style || {})[t] || "").indexOf("url(") > -1
+      );
     }
     transform(e, t) {
       const s = e.style;
@@ -155,14 +169,14 @@ function main() {
             const r = new Image();
             return (
               (r.src = n),
-              new u().transform(r, t).then(() => (s[e] = `url('${r.src}')`))
+              new _().transform(r, t).then(() => (s[e] = `url('${r.src}')`))
             );
           }
         })
       ).then(() => ({ node: e }));
     }
   }
-  const g = { SCRIPT: 1, STYLE: 1, HEAD: 1, NOSCRIPT: 1 };
+  const f = { SCRIPT: 1, STYLE: 1, HEAD: 1, NOSCRIPT: 1 };
   let DOMShot = (() => {
     class s {
       constructor(e, t) {
@@ -180,7 +194,7 @@ function main() {
           (this._clonedChildren = null),
           (this._xmlSerializer = new XMLSerializer()),
           (this._nodeTraversalHooks = []),
-          (this.options = c(t || {}, {
+          (this.options = h(t || {}, {
             inlineImages: !0,
             inlineVideos: !0,
             timeout: 5e3,
@@ -188,8 +202,8 @@ function main() {
           })),
           e && this.from(e),
           this.options.inlineImages &&
-            (u.requestRenderer(this), m.requestRenderer(this)),
-          this.options.inlineVideos && _.requestRenderer(this);
+            (_.requestRenderer(this), g.requestRenderer(this)),
+          this.options.inlineVideos && m.requestRenderer(this);
       }
       _reset() {
         (this._imgReadyForCanvas = null),
@@ -203,11 +217,7 @@ function main() {
         const t = this._sourceNode.cloneNode(!0);
         (this._clonedNode = t),
           (this._sourceChildren = e(this._sourceNode.querySelectorAll("*"))),
-          (this._clonedChildren = e(this._clonedNode.querySelectorAll("*"))),
-          t.scroll({
-            left: this._sourceNode.scrollLeft,
-            top: this._sourceNode.scrollTop,
-          });
+          (this._clonedChildren = e(this._clonedNode.querySelectorAll("*")));
       }
       _generateSVG() {
         const e = this._sourceNode,
@@ -252,7 +262,7 @@ function main() {
         return new Promise((e, t) => {
           this._canvasState === s.DRAW_PENDING &&
             t("Please call Screenshot first"),
-            r(() => (this._fillCanvas(), e(this)));
+            i(() => (this._fillCanvas(), e(this)));
         });
       }
       _processChildNodes() {
@@ -260,7 +270,7 @@ function main() {
           t = [];
         return (
           this._clonedChildren.forEach((s, n) => {
-            if (g[s.tagName] || "none" === s.style.display) return s.remove();
+            if (f[s.tagName] || "none" === s.style.display) return s.remove();
             t.push(this._sequentiallyRunTraversalHook(s, e[n]));
           }),
           Promise.all(t)
@@ -270,17 +280,17 @@ function main() {
         return new Promise((s) => {
           const n = this._nodeTraversalHooks,
             r = n.length;
-          let o = -1;
-          const i = () => {
-            if (++o == r) return s();
-            const a = n[o];
+          let i = -1;
+          const o = () => {
+            if (++i == r) return s();
+            const a = n[i];
             a.test(e)
               ? a.transform(e, t, this).then((t) => {
-                  (e = t.node), i();
+                  (e = t.node), o();
                 })
-              : i();
+              : o();
           };
-          i();
+          o();
         });
       }
       tapRenderProcess(e) {
@@ -302,12 +312,12 @@ function main() {
             if (!this._clonedNode)
               throw new Error("No source node has been specified");
             !(function (e, t) {
-              for (let s = 0; s < e.length; s++) d(t[s], e[s]);
+              for (let s = 0; s < e.length; s++) u(t[s], e[s]);
             })(this._clonedChildren, this._sourceChildren),
               this._processChildNodes().then(() => {
                 var t, s;
                 return (
-                  d(this._sourceNode, this._clonedNode),
+                  u(this._sourceNode, this._clonedNode, !0),
                   (t = this._clonedNode).style.background ||
                     t.style.backgroundImage ||
                     t.style.backgroundColor ||
@@ -322,7 +332,7 @@ function main() {
                         : void 0;
                     })(this._sourceNode)),
                   (s = this._clonedNode),
-                  i.forEach((e) => (s.style[e] = "")),
+                  a.forEach((e) => (s.style[e] = "")),
                   this._generateSVG(),
                   this._imgReadyForCanvas.then(() => {
                     (this._imgReadyForCanvas = null),
@@ -338,14 +348,14 @@ function main() {
       toDataUri(e, t) {
         return new Promise((s) =>
           this._drawImage().then(() =>
-            r(() => s(this._canvas.toDataURL(e || "image/jpeg", t || 1)))
+            i(() => s(this._canvas.toDataURL(e || "image/jpeg", t || 1)))
           )
         );
       }
       toBlob(e, t) {
         return new Promise((s) =>
           this._drawImage().then(() =>
-            r(() => this._canvas.toBlob(s, e || "image/jpeg", t || 1))
+            i(() => this._canvas.toBlob(s, e || "image/jpeg", t || 1))
           )
         );
       }
